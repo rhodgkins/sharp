@@ -26,8 +26,16 @@ const { minimumLibvipsVersion, minimumLibvipsVersionLabelled } = libvips;
 const distHost = process.env.npm_config_sharp_libvips_binary_host || 'https://github.com/lovell/sharp-libvips/releases/download';
 const distBaseUrl = process.env.npm_config_sharp_dist_base_url || process.env.SHARP_DIST_BASE_URL || `${distHost}/v${minimumLibvipsVersionLabelled}/`;
 
-const fail = function (err) {
+const fail = function (err, extra) {
+  npmLog.error('sharp', 'err');
+  npmLog.error('sharp', err);
+  npmLog.error('sharp', 'err.message');
   npmLog.error('sharp', err.message);
+  npmLog.error('sharp', 'err.stack');
+  npmLog.error('sharp', err.stack);
+  npmLog.error('sharp', 'TRACE');
+  npmLog.error('sharp', (new Error()).stack);
+  npmLog.error('sharp', `FROM: ${extra}`)
   if (err.code === 'EACCES') {
     npmLog.info('sharp', 'Are you trying to install as a root or sudo user? Try again with the --unsafe-perm flag');
   }
@@ -50,7 +58,7 @@ const extractTarball = function (tarPath) {
         if (/unexpected end of file/.test(err.message)) {
           npmLog.error('sharp', `Please delete ${tarPath} as it is not a valid tarball`);
         }
-        fail(err);
+        fail(err, 'extractTarball');
       }
     }
   );
@@ -96,19 +104,19 @@ try {
       npmLog.info('sharp', `Downloading ${url}`);
       simpleGet({ url: url, agent: agent() }, function (err, response) {
         if (err) {
-          fail(err);
+          fail(err, 'simpleGet - err');
         } else if (response.statusCode === 404) {
-          fail(new Error(`Prebuilt libvips ${minimumLibvipsVersion} binaries are not yet available for ${platformAndArch}`));
+          fail(new Error(`Prebuilt libvips ${minimumLibvipsVersion} binaries are not yet available for ${platformAndArch}`), 'simpleGet - 404');
         } else if (response.statusCode !== 200) {
-          fail(new Error(`Status ${response.statusCode} ${response.statusMessage}`));
+          fail(new Error(`Status ${response.statusCode} ${response.statusMessage}`), 'simpleGet - non-200');
         } else {
           response
-            .on('error', fail)
+            .on('error', e => fail(e, 'simpleGet - response error'))
             .pipe(tmpFile);
         }
       });
       tmpFile
-        .on('error', fail)
+        .on('error', e => fail(e, 'tmpFile - read error'))
         .on('close', function () {
           try {
             // Attempt to rename
@@ -123,5 +131,5 @@ try {
     }
   }
 } catch (err) {
-  fail(err);
+  fail(err, 'root - catch');
 }
